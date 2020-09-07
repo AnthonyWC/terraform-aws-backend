@@ -35,8 +35,10 @@ data "aws_caller_identity" "current" {
 resource "aws_dynamodb_table" "tf_backend_state_lock_table" {
   count            = var.dynamodb_lock_table_enabled ? 1 : 0
   name             = var.dynamodb_lock_table_name
-  read_capacity    = var.lock_table_read_capacity
-  write_capacity   = var.lock_table_write_capacity
+
+  billing_mode     = var.dynamodb_billing_mode
+  # read_capacity    = var.lock_table_read_capacity
+  # write_capacity   = var.lock_table_write_capacity
   hash_key         = "LockID"
   stream_enabled   = var.dynamodb_lock_table_stream_enabled
   stream_view_type = var.dynamodb_lock_table_stream_enabled ? var.dynamodb_lock_table_stream_view_type : ""

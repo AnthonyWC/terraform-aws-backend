@@ -1,6 +1,11 @@
 variable "backend_bucket" {
 }
 
+variable "dynamodb_billing_mode" {
+  type    = string
+  default = "PAY_PER_REQUEST"
+}
+
 variable "dynamodb_lock_table_enabled" {
   type        = bool
   default     = true
