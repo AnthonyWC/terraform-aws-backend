@@ -24,7 +24,7 @@
  * where the 'backend' portion is the name you choose:
  *
  * module "backend" {
- *   source = "github.com/samstav/terraform-aws-backend"
+ *   source = "github.com/AnthonyWC/terraform-aws-backend"
  * }
  *
  */

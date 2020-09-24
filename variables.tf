@@ -1,4 +1,14 @@
+locals {
+  state_bucket   = "${var.account_alias}-${var.identifer}"
+}
+
+variable "account_alias" {
+  description = "AWS account alias."
+  type        = string
+}
+
 variable "backend_bucket" {
+  default = local.state_bucket
 }
 
 variable "dynamodb_billing_mode" {
@@ -25,6 +35,12 @@ variable "dynamodb_lock_table_stream_view_type" {
 variable "dynamodb_lock_table_name" {
   default = "terraform-lock"
 }
+
+variable "identifer" {
+  description = "Prepend to account_alias to make s3 bucket (globally) unique, can be used to distinguish between environment(s)"
+  type        = string
+}
+
 
 variable "lock_table_read_capacity" {
   type    = number

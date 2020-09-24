@@ -1,37 +1,49 @@
 # terraform-aws-backend
 A Terraform module which enables you to create and manage your [Terraform AWS Backend resources](https://www.terraform.io/docs/backends/types/s3.html), _with terraform_ to achieve a best practice setup.
 
-More info on the aws (s3/dynamo) backend supported by this module is found here:
+More info on aws (s3/dynamo) backend supported by this module is found here:
 
 https://www.terraform.io/docs/backends/types/s3.html
 
+Note: This fork uses PAY-PER-REQUEST for dynamodb and add a default programatic name for s3 backend
 
 # Bootstrapping your project
 
-This terraform module helps you bootstrap any project which uses terraform for infrastructure management. [This module has a few options which are documented below. They allow you to change the behavior of this module.](#module-options)
+[This module has a few options which are documented below. They allow you to change the behavior of this module.](#module-options)
 
 **_Why does this exist?_**
 
-One of the most popular backend options for terraform is AWS (S3 for state, and DynamoDB for the lock table). If your project [specifies an AWS/S3 backend](https://www.terraform.io/docs/backends/types/s3.html), Terraform requires the existence of an S3 bucket in which to store _state_ information about your project, and a DynamoDB table to use for locking (this prevents you, your collaborators, and CI from stepping on each other with terraform commands which either modify your state or the infrastructure itself).
+If your project [specifies an AWS/S3 backend](https://www.terraform.io/docs/backends/types/s3.html), Terraform requires existence of an S3 bucket in which to store _state_ information and a DynamoDB table for state locking.
 
 This terraform module creates/manages those resources:
 
 * Versioned S3 bucket for state
 * Properly configured DynamoDB lock table
 
-**If you follow this README carefully, you should be able to avoid the circular dependency which is inherent to the problem at hand.**
+**If you follow this README carefully, you should be able to avoid circular dependency which is inherent to the problem at hand.**
+
 
 **_What circular dependency?_**
 
-Your resulting terraform configuration block will refer to the resources created by this module. You wouldn't be able to `plan` or `apply` if your state bucket and lock table don't exist. The details which make this work can be seen under [the section which encourages you to postpone writing your terraform configuration block](#postpone-writing-your-terraform-configuration-block) and the [specific options used in the commands section below](#commands-are-the-fun-part).
+Your resulting terraform configuration block will refer to resources created by this module. You wouldn't be able to `plan` or `apply` if your state bucket and lock table don't exist. The details which make this work can be seen under [the section which encourages you to postpone writing your terraform configuration block](#postpone-writing-your-terraform-configuration-block) and [specific options used in the commands section below](#commands-are-the-fun-part).
 
-### a note on state bucket and s3 key naming
 
-For the purposes of this intro, we'll use a bucket named `terraform-state-bucket`, but you'll want to choose an appropriate name for the s3 bucket in which terraform will store your infrastructure state. Perhaps something like `terraform-state-<your_project-name>`, or, if you store all of your terraform state for all projects in a single bucket, `bucket-with-all-of-my-tf-states` along with a `key` that defines a path/key name which is more project specific such as `states/project-x-terraform.tfstate`.
+### Note on state bucket and s3 key naming
 
-### postpone writing your terraform configuration block
+Can be specified in module block with:
+```
+  backend_bucket = "terraform-state-bucket"
+```
 
-In order to bootstrap your project with this module/setup, you will need to wait until **after** Step 4 (below) to write your [terraform configuration block](https://www.terraform.io/docs/configuration/terraform.html) into one of your `.tf` files. (Your "terraform configuration block" is the one that looks like this `terraform {}`.)
+Otherwise it's generated from:
+```
+   state_bucket   = "${var.account_alias}-${var.identifer}"
+```
+which are also specified as variables in module block
+
+### Postpone writing your terraform configuration block
+
+In order to bootstrap your project with this module/setup, wait until **after** Step 4 (below) to write [terraform configuration block](https://www.terraform.io/docs/configuration/terraform.html) into one of your `.tf` files. (Your "terraform configuration block" is the one that looks like this `terraform {}`.)
 
 If you are updating an existing terraform-managed project, or you already wrote your `terraform {...}` block into one of your `.tf` files, you will run into the following error on Step 3 (`terraform plan`):
 
@@ -42,8 +54,14 @@ If you are updating an existing terraform-managed project, or you already wrote 
 
 ```hcl
 module "backend" {
-  source = "github.com/samstav/terraform-aws-backend"
-  backend_bucket = "terraform-state-bucket"
+  source = "github.com/AnthonyWC/terraform-aws-backend"
+
+  account_alias = "hashicorp"
+  identifer = "prod"
+
+  # Optional to override generated name
+  # backend_bucket = "terraform-state-bucket"
+
   # using options, e.g. if you dont want a dynamodb lock table, uncomment this:
   # dynamodb_lock_table_enabled = false
 }
@@ -80,26 +98,30 @@ Error: Error applying plan:
 	status code: 400, request id: F35KO0U78JJOIWEJFNJNJHSLDBFF66Q9ASUAAJG
  ```
 
-### commands are the fun part
+### commands to run:
 
-The following commands will get you up and running:
 ```bash
 # Step 1: Download modules
 terraform get -update
+
 # Step 2: Initialize your directory/project for use with terraform
-# The use of -backend=false here is important: it avoids backend configuration
-# on our first call to init since we havent created our backend resources yet
+# Note: Use of -backend=false here is important: Avoid backend configuration initially as the backend resources is not created yet
 terraform init -backend=false
+
 # Step 3: Create infrastructure plan for just the tf backend resources
-# Target only the resources needed for our aws backend for terraform state/locking
+# Target only resources needed for aws backend for terraform state/locking
 terraform plan -out=backend.plan -target=module.backend
+
 # Step 4: Apply the infrastructure plan
 terraform apply backend.plan
+
 # Step 5: Only after applying (building) the backend resources, write our terraform config.
-# Now we can write the terraform backend configuration into our project
-# Instead of this command, you can write the terraform config block into any of your .tf files
+# Now write terraform backend configuration into our project
+
+# Instead of this command, can instead write terraform config block in a .tf file
 # Please see "writing your terraform configuration" below for more info
 echo 'terraform { backend "s3" {} }' > conf.tf
+
 # Step 6: Reinitialize terraform to use your newly provisioned backend
 terraform init -reconfigure \
     -backend-config="bucket=terraform-state-bucket" \
@@ -139,12 +161,23 @@ Options and configuration for this module are exposed via terraform variables.
 
 #### `backend_bucket`
 
-This is the only variable which has no default but is required. You will need to define this value in your terraform-aws-backend module block. There are a few ways to do this, here's a couple:
+Create the s3 backend bucket; default as:
+```
+ state_bucket   = "${var.account_alias}-${var.identifer}"
+```
+
+Can be explicitly defined to override default value in your terraform-aws-backend module block. e.g.
+
 
 ```hcl
 module "backend" {
-  source = "github.com/samstav/terraform-aws-backend"
-  backend_bucket = "terraform-state-bucket"
+  source = "github.com/AnthonyWC/terraform-aws-backend"
+
+  account_alias = "hashicorp"
+  identifer = "prod"
+
+  # Optional to override generated name
+  # backend_bucket = "terraform-state-bucket"
 }
 ```
 
@@ -156,7 +189,7 @@ variable "backend_bucket" {
 }
 
 module "backend" {
-  source = "github.com/samstav/terraform-aws-backend"
+  source = "github.com/AnthonyWC/terraform-aws-backend"
   backend_bucket = "${var.backend_bucket}"
 }
 ```
@@ -185,7 +218,7 @@ Only applies if `dynamodb_lock_table_stream_enabled` is true.
 
 _Defaults to `terraform-lock`_
 
-The name of your [terraform state locking](https://www.terraform.io/docs/state/locking.html) DynamoDB Table.
+Name of your [terraform state locking](https://www.terraform.io/docs/state/locking.html) DynamoDB Table.
 
 #### `lock_table_read_capacity`
 
@@ -208,4 +241,4 @@ Encryption key to use for encrypting the terraform remote state s3 bucket. If no
 
 See variables available for module configuration
 
-https://github.com/samstav/terraform-aws-backend/blob/master/variables.tf
+https://github.com/AnthonyWC/terraform-aws-backend/blob/master/variables.tf
