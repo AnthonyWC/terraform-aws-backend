@@ -59,8 +59,9 @@ resource "aws_dynamodb_table" "tf_backend_state_lock_table" {
 }
 
 resource "aws_s3_bucket" "tf_backend_bucket" {
-  bucket = var.backend_bucket
+  bucket = var.backend_bucket != "" ? var.backend_bucket : local.state_bucket
   acl    = "private"
+
   versioning {
     enabled = true
   }

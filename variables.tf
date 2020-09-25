@@ -8,7 +8,8 @@ variable "account_alias" {
 }
 
 variable "backend_bucket" {
-  default = local.state_bucket
+  default = ""
+  type    = string
 }
 
 variable "dynamodb_billing_mode" {
