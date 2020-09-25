@@ -139,13 +139,14 @@ resource "aws_s3_bucket_policy" "tf_backend_bucket_policy" {
 }
 
 resource "aws_s3_bucket" "tf_backend_logs_bucket" {
-  bucket = "${var.backend_bucket}-logs"
+  bucket = var.backend_bucket != "" ? "${var.backend_bucket}-logs" : "${local.state_bucket}-logs"
+
   acl    = "log-delivery-write"
   versioning {
     enabled = true
   }
   tags = {
-    Purpose            = "Logging bucket for ${var.backend_bucket}"
+    Purpose            = "Logging bucket for Terraform S3 backend"
     ManagedByTerraform = "true"
     TerraformModule    = "terraform-aws-backend"
   }
