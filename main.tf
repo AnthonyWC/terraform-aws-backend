@@ -65,15 +65,18 @@ resource "aws_s3_bucket" "tf_backend_bucket" {
   versioning {
     enabled = true
   }
+
   logging {
     target_bucket = aws_s3_bucket.tf_backend_logs_bucket.id
     target_prefix = "log/"
   }
+
   tags = {
     Description        = "Terraform S3 Backend bucket which stores the terraform state for account ${data.aws_caller_identity.current.account_id}."
     ManagedByTerraform = "true"
     TerraformModule    = "terraform-aws-backend"
   }
+
   server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
@@ -82,8 +85,10 @@ resource "aws_s3_bucket" "tf_backend_bucket" {
       }
     }
   }
+
   lifecycle {
     prevent_destroy = true
+    ignore_changes = [tags]
   }
 }
 
@@ -145,13 +150,16 @@ resource "aws_s3_bucket" "tf_backend_logs_bucket" {
   versioning {
     enabled = true
   }
+
   tags = {
     Purpose            = "Logging bucket for Terraform S3 backend"
     ManagedByTerraform = "true"
     TerraformModule    = "terraform-aws-backend"
   }
+
   lifecycle {
     prevent_destroy = true
+    ignore_changes = [tags]
   }
 }
 
